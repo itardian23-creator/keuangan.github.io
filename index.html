@@ -302,7 +302,7 @@ window.AUTH={
 <dialog id="ndlg"><form id="nform" method="dialog">
   <h2>Notif</h2>
   <div id="nmsg" style="padding:12px 14px;border-radius:14px;background:var(--chip);border-left:4px solid var(--warn);font-size:14px"></div>
-  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close>Tutup</button><button class="btn acc" type="button" id="ngo">Atur Google Sheets</button></div>
+  <div class="row" style="justify-content:flex-end"><button class="btn acc" type="button" data-close>Tutup</button></div>
 </form></dialog>
 
 <dialog id="cdlg"><form id="cform" method="dialog">
@@ -427,7 +427,7 @@ async function loadDb(){
   refresh();
   if(imp)persist();
   if(canWrite()){if(loaded)setStatus('Tersambung ke Google Sheets','ok');}
-  else{setStatus('Mode baca saja');banner('Mode baca saja. Hubungkan Google Sheets agar perubahan bisa disimpan.');if(!window.asked){window.asked=1;setTimeout(()=>{if(!$('#cdlg').open)$('#cdlg').showModal();},400);}}
+  else{setStatus('Mode baca saja');banner('Mode baca saja. Hubungkan Google Sheets agar perubahan bisa disimpan.');if(!window.asked){window.asked=1;}}
 }
 function persist(){
   if(pend)return;pend=true;
@@ -769,9 +769,9 @@ $('#pform').addEventListener('submit',e=>{const f=e.target;
     document.querySelectorAll('#pcats .prow').forEach(r=>{const n=r.querySelector('[data-n]').value.replace(/\|/g,' ').trim(),v=Number(r.querySelector('[data-v]').value);if(n&&v>0)db.run('INSERT OR REPLACE INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,n,v]);});});});
 // notif
 $('#nbtn').onclick=()=>{$('#nmsg').textContent=NOTIF||'Tidak ada notifikasi.';$('#ndlg').showModal();};
-$('#ngo').onclick=()=>{$('#ndlg').close();needTok();};
+
 // token
-const needTok=()=>$('#cdlg').showModal();
+const needTok=()=>{banner('Tidak bisa terhubung ke Google Sheets. Muat ulang halaman.');};
 $('#cfg').onclick=()=>{if(confirm('Keluar dari Ardian?')){AUTH.clear();location.reload();}};
 $('#cform').addEventListener('submit',e=>{cfg.gas=e.target.gas.value.trim();cfg.key=e.target.key.value.trim();saveCfg();setTimeout(loadDb,0);});
 
