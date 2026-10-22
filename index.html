@@ -215,7 +215,7 @@ window.AUTH={
     <button type="button" class="on" data-t="sum">Ringkasan</button><button type="button" data-t="cal">Kalender</button><button type="button" data-t="tx">Transaksi</button>
   </nav>
   <div class="tright">
-    <span class="status" id="status">Memuat…</span>
+    <span class="status" id="status" hidden>Memuat…</span>
     <div class="dtools">
       <button class="ib" id="nbtn" data-notif type="button">Notif</button>
       <button class="ib" id="reload" type="button">Muat ulang</button>
@@ -301,6 +301,7 @@ window.AUTH={
 
 <dialog id="ndlg"><form id="nform" method="dialog">
   <h2>Notif</h2>
+  <div><span class="status" id="nstat">Memuat…</span></div>
   <div id="nmsg" style="padding:12px 14px;border-radius:14px;background:var(--chip);border-left:4px solid var(--warn);font-size:14px"></div>
   <div class="row" style="justify-content:flex-end"><button class="btn acc" type="button" data-close>Tutup</button></div>
 </form></dialog>
@@ -768,7 +769,7 @@ $('#pform').addEventListener('submit',e=>{const f=e.target;
     WALLETS.forEach((w,i)=>{const v=f['w'+i].value;if(v==='')db.run('DELETE FROM wopen WHERE month=? AND wallet=?',[M,w]);else db.run('INSERT OR REPLACE INTO wopen(month,wallet,amount) VALUES(?,?,?)',[M,w,Number(v)||0]);});db.run('DELETE FROM budgets WHERE month=?',[M]);
     document.querySelectorAll('#pcats .prow').forEach(r=>{const n=r.querySelector('[data-n]').value.replace(/\|/g,' ').trim(),v=Number(r.querySelector('[data-v]').value);if(n&&v>0)db.run('INSERT OR REPLACE INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,n,v]);});});});
 // notif
-$('#nbtn').onclick=()=>{$('#nmsg').textContent=NOTIF||'Tidak ada notifikasi.';$('#ndlg').showModal();};
+$('#nbtn').onclick=()=>{const s=$('#status'),n=$('#nstat');n.textContent=s.textContent;n.className='status '+s.className.replace('status','').trim();$('#nmsg').textContent=NOTIF||'Tidak ada notifikasi.';$('#ndlg').showModal();};
 
 // token
 const needTok=()=>{banner('Tidak bisa terhubung ke Google Sheets. Muat ulang halaman.');};
