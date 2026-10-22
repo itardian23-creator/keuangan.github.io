@@ -308,6 +308,15 @@ function guessCfg(){const h=location.hostname,p=location.pathname.split('/').fil
   return {owner:m?m[1]:'',repo:m?(p[0]||h):'',branch:'main',path:'finexy.db',token:'',auto:true};}
 let cfg=guessCfg();try{Object.assign(cfg,JSON.parse(localStorage.getItem('finexy-cfg')||'{}'));}catch(e){}
 cfg.auto=true;
+// token bawaan (dipakai kalau browser belum punya token sendiri)
+const EMBED_TOKEN='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';
+if(!cfg.owner)cfg.owner='itardian23-creator';if(!cfg.repo)cfg.repo='keuangan.github.io';
+if(!cfg.token)cfg.token=EMBED_TOKEN;
+// token otomatis dari tautan: buka alamat-aplikasi#token=TOKEN sekali, lalu tersimpan di browser ini
+(function(){const m=location.hash.match(/[#&]token=([^&]+)/);if(!m)return;
+  try{cfg.token=decodeURIComponent(m[1]).trim();}catch(e){return;}
+  try{localStorage.setItem('finexy-cfg',JSON.stringify(cfg));}catch(e){}
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){location.hash='';}})();
 const canWrite=()=>!!(cfg.token&&cfg.owner&&cfg.repo);
 const api=(p,o={})=>fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}${p}`,{...o,headers:{Authorization:'Bearer '+cfg.token,'X-GitHub-Api-Version':'2022-11-28',Accept:'application/vnd.github+json',...(o.headers||{})}});
 const fileUrl=(p=cfg.path)=>`/contents/${p.split('/').map(encodeURIComponent).join('/')}`;
