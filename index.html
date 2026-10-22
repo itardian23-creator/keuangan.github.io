@@ -350,7 +350,7 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);INSERT OR I
 CREATE TABLE IF NOT EXISTS plans(month TEXT PRIMARY KEY,lim REAL,target REAL);
 CREATE TABLE IF NOT EXISTS budgets(month TEXT,cat TEXT,amount REAL,PRIMARY KEY(month,cat));
 CREATE TABLE IF NOT EXISTS wopen(month TEXT,wallet TEXT,amount REAL,PRIMARY KEY(month,wallet));`;
-let SQL,db,sha=null,limit=3000000,tx=[],PL={},BG={},WO={},EW=null,loaded=false,M=today().slice(0,7),D=today(),tab='sum',Q=[];
+let SQL,db,sha=null,limit=3000000,tx=[],PL={},BG={},WO={},EW=null,loaded=false,BALV=0,M=today().slice(0,7),D=today(),tab='sum',Q=[];
 
 // ---------- konfigurasi ----------
 function guessCfg(){const h=location.hostname,p=location.pathname.split('/').filter(Boolean),m=h.match(/^(.+)\.github\.io$/);
@@ -478,8 +478,8 @@ function render(){
     pend=pn.reduce((a,c)=>a+Math.max(0,(BG[M+'|'+c]||0)-mo.filter(x=>x.type==='out'&&x.cat===c).reduce((s,x)=>s+x.amount,0)),0),
     sisa=openT+inM-commit-otherOut;
   const wb=WALLETS.map(w=>wbal(w,M)),totS=wb.reduce((a,b)=>a+b,0);
-  $('#bal').textContent=rp(totS);
-  $('#balNote').textContent=mLabel(M,{month:'long'})+': '+(inM-outM>=0?'+':'−')+rp(Math.abs(inM-outM))+(pend?' · setelah pos dipotong: '+rp(totS-pend):'')+' · ketuk dompet untuk ubah saldo';
+  BALV=totS-pend;$('#bal').textContent=rp(BALV);
+  $('#balNote').textContent=mLabel(M,{month:'long'})+': '+(inM-outM>=0?'+':'−')+rp(Math.abs(inM-outM))+(pend?' · saldo dompet '+rp(totS)+' − pos belum tercatat '+rp(pend):'')+' · ketuk dompet untuk ubah saldo';
   $('#wallets').innerHTML=WALLETS.map((w,i)=>EW===w?`<div class="w"><span class="sub">${w}</span><input id="wedit" data-money="s" type="number" inputmode="numeric" value="${Math.round(wb[i])}" style="width:140px;text-align:right;font-weight:700" aria-label="Saldo ${w}"></div>`:`<div class="w" data-w="${w}" style="cursor:pointer" role="button" tabindex="0"><span class="sub">${w} ✎</span><b>${rp(wb[i])}</b></div>`).join('');
   if(EW){const e=$('#wedit');if(e&&document.activeElement!==e){e.focus();e.select();}}
   const [y,mm]=M.split('-').map(Number),dim=new Date(y,mm,0).getDate(),cur=today().slice(0,7)===M,el=cur?new Date().getDate():(M<today().slice(0,7)?dim:0);
@@ -668,7 +668,7 @@ async function saveItems(items){
     const app=document.querySelector('.app'),k=M+'|'+tab,fx=k!==key;key=k;
     app.classList.remove('fx');if(fx){void app.offsetWidth;app.classList.add('fx');}
     orig();
-    const to=sum(tx,'in')-sum(tx,'out'),el=$('#bal');
+    const to=BALV,el=$('#bal');
     if(fx&&!matchMedia('(prefers-reduced-motion:reduce)').matches&&to!==0){
       const from=shown===null?0:shown,t0=performance.now();
       (function step(t){const p=Math.min(1,(t-t0)/700),v=from+(to-from)*(1-Math.pow(1-p,3));el.textContent=rp(v);if(p<1)requestAnimationFrame(step);else shown=to;})(t0);
