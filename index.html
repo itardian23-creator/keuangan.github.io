@@ -242,7 +242,7 @@ window.AUTH={
 </div>
 <div class="app">
   <header>
-    <div><p class="eyebrow">Catatan keuangan</p><h1 id="hi">Keluarga A2</h1><div class="sub hsub">Data tersimpan di <b>finexy.db</b>, foto bukti di folder <b>receipts/</b> pada repo GitHub kamu.</div></div>
+    <div><p class="eyebrow">Catatan keuangan</p><h1 id="hi">Keluarga A2</h1><div class="sub hsub">Data tersimpan di <b>Google Sheets</b> kamu, foto bukti di folder <b>Ardian Struk</b> di Google Drive.</div></div>
     <button class="btn acc" id="add" aria-label="Catat transaksi">+ Catat</button>
   </header>
   <div class="row mrow">
@@ -290,7 +290,9 @@ window.AUTH={
 
 <dialog id="pdlg"><form id="pform" method="dialog">
   <h2 id="pt">Atur bulan</h2><div class="sub">Pengaturan ini hanya berlaku untuk bulan terpilih. Semua isian boleh dikosongkan.</div>
-  <label>Uang awal bulan ini (Rp)<input name="target" type="number" min="0" inputmode="numeric" placeholder="Uang yang kamu pegang di awal bulan"></label>
+  <div class="sub" style="margin-top:4px"><b>Uang awal per dompet</b> · terisi otomatis dari saldo, boleh diubah</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><label>Tunai<input name="w0" type="number" min="0" inputmode="numeric"></label><label>Bank<input name="w1" type="number" min="0" inputmode="numeric"></label><label>E-Wallet<input name="w2" type="number" min="0" inputmode="numeric"></label></div>
+  <label>Total uang awal bulan ini (Rp)<input name="target" type="number" readonly style="opacity:.8"></label>
   <div class="sub" style="margin-top:4px"><b>Pos pengeluaran</b> · isi untuk apa dan total berapa</div><div id="pcats" style="display:grid;gap:8px"></div>
   <button class="btn" type="button" id="addPos" style="justify-self:start">+ Tambah pos</button>
   <div class="note" id="pwarn"></div>
@@ -300,15 +302,14 @@ window.AUTH={
 <dialog id="ndlg"><form id="nform" method="dialog">
   <h2>Notif</h2>
   <div id="nmsg" style="padding:12px 14px;border-radius:14px;background:var(--chip);border-left:4px solid var(--warn);font-size:14px"></div>
-  <label>Token GitHub baru<input name="token" type="password" autocomplete="off" placeholder="github_pat_…"></label>
-  <div class="sub">Kalau notif soal token, tempel token baru di sini lalu simpan. Token hanya disimpan di browser ini.</div>
-  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close>Tutup</button><button class="btn acc" type="submit">Simpan token</button></div>
+  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close>Tutup</button><button class="btn acc" type="button" id="ngo">Atur Google Sheets</button></div>
 </form></dialog>
 
 <dialog id="cdlg"><form id="cform" method="dialog">
-  <h2>Hubungkan ke GitHub</h2>
-  <div class="sub">Tempel token GitHub sekali saja agar catatan dan foto tersimpan ke repo. Token hanya disimpan di browser ini.</div>
-  <label>Token GitHub<input name="token" type="password" autocomplete="off" required placeholder="github_pat_…"></label>
+  <h2>Hubungkan Google Sheets</h2>
+  <div class="sub">Tempel URL web app dari Apps Script dan kunci rahasia (SECRET) sekali saja. Keduanya hanya disimpan di browser ini.</div>
+  <label>URL web app<input name="gas" type="url" autocomplete="off" required placeholder="https://script.google.com/macros/s/…/exec"></label>
+  <label>Kunci rahasia<input name="key" type="password" autocomplete="off" required placeholder="SECRET di Code.gs"></label>
   <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close>Nanti</button><button class="btn acc" type="submit">Hubungkan</button></div>
 </form></dialog>
 
@@ -347,14 +348,15 @@ function mapCat(g,type,date){const l=formCats(type,(date||today()).slice(0,7));i
 const SCHEMA=`CREATE TABLE IF NOT EXISTS transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,amount REAL NOT NULL CHECK(amount>0),type TEXT NOT NULL CHECK(type IN('in','out')),cat TEXT,wallet TEXT,date TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);INSERT OR IGNORE INTO settings VALUES('limit','3000000');
 CREATE TABLE IF NOT EXISTS plans(month TEXT PRIMARY KEY,lim REAL,target REAL);
-CREATE TABLE IF NOT EXISTS budgets(month TEXT,cat TEXT,amount REAL,PRIMARY KEY(month,cat));`;
-let SQL,db,sha=null,limit=3000000,tx=[],PL={},BG={},M=today().slice(0,7),D=today(),tab='sum',Q=[];
+CREATE TABLE IF NOT EXISTS budgets(month TEXT,cat TEXT,amount REAL,PRIMARY KEY(month,cat));
+CREATE TABLE IF NOT EXISTS wopen(month TEXT,wallet TEXT,amount REAL,PRIMARY KEY(month,wallet));`;
+let SQL,db,sha=null,limit=3000000,tx=[],PL={},BG={},WO={},EW=null,loaded=false,M=today().slice(0,7),D=today(),tab='sum',Q=[];
 
 // ---------- konfigurasi ----------
 function guessCfg(){const h=location.hostname,p=location.pathname.split('/').filter(Boolean),m=h.match(/^(.+)\.github\.io$/);
   return {owner:m?m[1]:'',repo:m?(p[0]||h):'',branch:'main',path:'finexy.db',token:'',auto:true};}
 let cfg=guessCfg();try{Object.assign(cfg,JSON.parse(localStorage.getItem('finexy-cfg')||'{}'));}catch(e){}
-cfg.auto=true;
+cfg.auto=true;cfg.gas='https://script.google.com/macros/s/AKfycbwtkRE1tcvCwC4a2FTZ8KZ800xPcj7MkOnmoO749sDwu0pJLuGOFezAe1WGx6epRADYbQ/exec';cfg.key='5LedSDeQ24AVR6uOa_Y3lFr8';
 // login: token GitHub tersimpan terenkripsi, hanya terbuka dengan username+password yang benar
 cfg.token='';if(!cfg.owner)cfg.owner='itardian23-creator';if(!cfg.repo)cfg.repo='keuangan.github.io';
 try{cfg.token=AUTH.get();}catch(e){}
@@ -364,50 +366,80 @@ async function unlock(u,p){
   const km=await sub.importKey('raw',new TextEncoder().encode(u.trim().toLowerCase()+'\n'+p),'PBKDF2',false,['deriveKey']);
   const k=await sub.deriveKey({name:'PBKDF2',salt:raw.slice(0,16),iterations:ITER,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
   return new TextDecoder().decode(await sub.decrypt({name:'AES-GCM',iv:raw.slice(16,28)},k,raw.slice(28)));}
-const canWrite=()=>!!(cfg.token&&cfg.owner&&cfg.repo);
+const canWrite=()=>!!(cfg.gas&&cfg.key);const ghOk=()=>!!(cfg.token&&cfg.owner&&cfg.repo);
+const saveCfg=()=>{const c={...cfg};delete c.token;try{localStorage.setItem('finexy-cfg',JSON.stringify(c))}catch(e){}};
 const api=(p,o={})=>fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}${p}`,{...o,headers:{Authorization:'Bearer '+cfg.token,'X-GitHub-Api-Version':'2022-11-28',Accept:'application/vnd.github+json',...(o.headers||{})}});
 const fileUrl=(p=cfg.path)=>`/contents/${p.split('/').map(encodeURIComponent).join('/')}`;
+async function gas(action,payload){
+  const r=await fetch(cfg.gas,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:cfg.key,action,...(payload||{})})});
+  let j;try{j=await r.json();}catch(e){throw new Error('Balasan Apps Script tidak valid. Periksa URL dan pastikan deploy dengan akses "Anyone".');}
+  if(!j.ok&&j.error!=='conflict')throw new Error(j.error||'Gagal menghubungi Apps Script');
+  return j;}
 function setStatus(t,c=''){const s=$('#status');s.textContent=t;s.className='status '+c;}
 let NOTIF='';
 function banner(t){NOTIF=t||'';document.querySelectorAll('[data-notif]').forEach(b=>b.classList.toggle('has',!!NOTIF));}
-function setToken(t){cfg.token=t;AUTH.set(t);try{localStorage.setItem('finexy-cfg',JSON.stringify(cfg));}catch(x){}setTimeout(loadDb,0);}
 let tt;function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',4000);}
 
-// ---------- database ----------
-async function loadDb(){
-  setStatus('Memuat…');banner('');let bytes=null;
-  try{
-    if(canWrite()){
-      const u=fileUrl()+'?ref='+encodeURIComponent(cfg.branch),meta=await api(u);
-      if(meta.ok){sha=(await meta.json()).sha;const raw=await api(u,{headers:{Accept:'application/vnd.github.raw+json'}});bytes=new Uint8Array(await raw.arrayBuffer());}
-      else if(meta.status===404)sha=null;
-      else if(meta.status===401||meta.status===403)throw new Error('Token ditolak GitHub. Periksa token dan izin Contents.');
-      else throw new Error('GitHub membalas '+meta.status);
-    }else{const r=await fetch(cfg.path+'?t='+Date.now());if(r.ok)bytes=new Uint8Array(await r.arrayBuffer());}
-  }catch(e){setStatus('Gagal memuat','err');banner(e.message);}
-  db=bytes&&bytes.length?new SQL.Database(bytes):new SQL.Database();
-  db.run(SCHEMA);
-  const cols=db.exec('PRAGMA table_info(transactions)')[0].values.map(v=>v[1]);
-  for(const c of['note','proof','source','jenis'])if(!cols.includes(c))db.run(`ALTER TABLE transactions ADD COLUMN ${c} TEXT`);
-  refresh();
-  if(canWrite())setStatus('Tersambung ke GitHub','ok');else{setStatus('Mode baca saja');banner('Mode baca saja. Hubungkan token GitHub agar perubahan bisa disimpan.');if(!window.asked){window.asked=1;setTimeout(()=>{if(!$('#cdlg').open)$('#cdlg').showModal();},400);}}
-}
+// ---------- database (Google Sheets lewat Apps Script) ----------
+const TBL={transactions:['id','title','amount','type','cat','wallet','date','created_at','note','proof','source','jenis'],plans:['month','lim','target'],budgets:['month','cat','amount'],wopen:['month','wallet','amount'],settings:['key','value']};
+const EXTRA=['note','proof','source','jenis'];
+const snapshot=()=>{const o={};for(const t in TBL)o[t]=rows(`SELECT ${TBL[t].join(',')} FROM ${t}`);return o;};
+function fromTables(t){
+  const d=new SQL.Database();d.run(SCHEMA);EXTRA.forEach(c=>d.run(`ALTER TABLE transactions ADD COLUMN ${c} TEXT`));
+  d.run('BEGIN');
+  for(const n in TBL){const cols=TBL[n],ins=`INSERT OR REPLACE INTO ${n}(${cols.join(',')}) VALUES(${cols.map(()=>'?').join(',')})`;
+    (t[n]||[]).forEach(r=>d.run(ins,cols.map((c,i)=>r[i]===''||r[i]===undefined?null:r[i])));}
+  d.run('COMMIT');return d;}
 const b64=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
-// semua tulis ke GitHub diantre satu per satu agar tidak bentrok
+// semua tulis diantre satu per satu agar tidak bentrok
 let chain=Promise.resolve(),pend=false;
 const enqueue=f=>{const p=chain.then(f);chain=p.catch(()=>{});return p;};
+// impor sekali dari finexy.db + foto di GitHub (hanya jika Google Sheets masih kosong)
+async function importGithub(){
+  setStatus('Mengimpor dari GitHub…');
+  const u=fileUrl()+'?ref='+encodeURIComponent(cfg.branch),meta=await api(u);
+  if(!meta.ok)throw new Error('finexy.db tidak ditemukan di GitHub (kode '+meta.status+')');
+  const raw=await api(u,{headers:{Accept:'application/vnd.github.raw+json'}}),d=new SQL.Database(new Uint8Array(await raw.arrayBuffer()));
+  d.run(SCHEMA);
+  const cols=d.exec('PRAGMA table_info(transactions)')[0].values.map(v=>v[1]);
+  for(const c of EXTRA)if(!cols.includes(c))d.run(`ALTER TABLE transactions ADD COLUMN ${c} TEXT`);
+  const r=d.exec("SELECT DISTINCT proof FROM transactions WHERE proof LIKE 'receipts/%'"),ps=r.length?r[0].values.map(v=>v[0]):[];let i=0,fail=0;
+  for(const p of ps){setStatus(`Memindah foto ${++i} dari ${ps.length}…`);
+    try{const rr=await api(fileUrl(p)+'?ref='+encodeURIComponent(cfg.branch),{headers:{Accept:'application/vnd.github.raw+json'}});
+      if(!rr.ok)throw new Error('x');const id=await upProof(await rr.blob(),p.split('/')[1]||'lama');d.run('UPDATE transactions SET proof=? WHERE proof=?',[id,p]);}
+    catch(e){fail++;}}
+  if(fail)toast(fail+' foto lama gagal dipindah.');
+  return d;}
+async function loadDb(){
+  setStatus('Memuat…');banner('');let bytes=null,tbl=null,imp=null;loaded=false;
+  try{
+    if(canWrite()){
+      const j=await gas('load');sha=j.version||0;tbl=j.tables;loaded=true;
+      if(!sha&&ghOk()&&confirm('Google Sheets masih kosong. Impor data lama dari GitHub (termasuk foto)?')){
+        try{imp=await importGithub();}catch(e){banner('Impor gagal: '+e.message);}
+      }
+    }else{const r=await fetch(cfg.path+'?t='+Date.now());if(r.ok)bytes=new Uint8Array(await r.arrayBuffer());}
+  }catch(e){setStatus('Gagal memuat','err');banner(e.message);}
+  db=imp||(tbl?fromTables(tbl):(bytes&&bytes.length?new SQL.Database(bytes):new SQL.Database()));
+  db.run(SCHEMA);
+  const cols=db.exec('PRAGMA table_info(transactions)')[0].values.map(v=>v[1]);
+  for(const c of EXTRA)if(!cols.includes(c))db.run(`ALTER TABLE transactions ADD COLUMN ${c} TEXT`);
+  refresh();
+  if(imp)persist();
+  if(canWrite()){if(loaded)setStatus('Tersambung ke Google Sheets','ok');}
+  else{setStatus('Mode baca saja');banner('Mode baca saja. Hubungkan Google Sheets agar perubahan bisa disimpan.');if(!window.asked){window.asked=1;setTimeout(()=>{if(!$('#cdlg').open)$('#cdlg').showModal();},400);}}
+}
 function persist(){
   if(pend)return;pend=true;
-  enqueue(async()=>{pend=false;setStatus('Menyimpan ke GitHub…');
-    try{const body={message:'Update finexy.db '+new Date().toISOString(),content:b64(db.export()),branch:cfg.branch};if(sha)body.sha=sha;
-      const r=await api(fileUrl(),{method:'PUT',body:JSON.stringify(body)});
-      if(r.ok){sha=(await r.json()).content.sha;setStatus('Tersimpan di GitHub','ok');}
-      else if(r.status===409||r.status===422){setStatus('Konflik data','err');banner('File di GitHub sudah berubah dari perangkat lain. Klik “Muat ulang”, lalu ulangi perubahan terakhir.');}
-      else{setStatus('Gagal menyimpan','err');banner('GitHub membalas '+r.status+'. Periksa token dan izin repo.');}
-    }catch(e){setStatus('Gagal menyimpan','err');banner('Tidak bisa menghubungi GitHub: '+e.message);}});
+  enqueue(async()=>{pend=false;setStatus('Menyimpan ke Google Sheets…');
+    try{const j=await gas('save',{base:sha,tables:snapshot()});
+      if(j.ok){sha=j.version;setStatus('Tersimpan di Google Sheets','ok');}
+      else{setStatus('Konflik data','err');banner('Data di Google Sheets sudah berubah dari perangkat lain. Klik “Muat ulang”, lalu ulangi perubahan terakhir.');}
+    }catch(e){setStatus('Gagal menyimpan','err');banner('Tidak bisa menyimpan ke Google Sheets: '+e.message);}});
 }
 function change(fn){
   if(!canWrite()){needTok();return false;}
+  if(!loaded){banner('Data belum berhasil dimuat dari Google Sheets. Klik “Muat ulang” dulu agar data lama tidak tertimpa.');return false;}
   try{db.run('BEGIN');fn();db.run('COMMIT');}catch(e){try{db.run('ROLLBACK')}catch(x){}banner('Gagal: '+e.message);return false;}
   refresh();persist();return true;
 }
@@ -417,11 +449,17 @@ function refresh(){
   const l=rows("SELECT value FROM settings WHERE key='limit'");limit=l.length?Number(l[0][0]):3000000;
   PL={};rows('SELECT month,lim,target FROM plans').forEach(v=>PL[v[0]]={lim:v[1],target:v[2]});
   BG={};rows('SELECT month,cat,amount FROM budgets').forEach(v=>BG[v[0]+'|'+v[1]]=v[2]);
+  WO={};rows('SELECT month,wallet,amount FROM wopen').forEach(v=>WO[v[0]+'|'+v[1]]=v[2]);
   render();
 }
 
 // ---------- tampilan ----------
 const sum=(a,t)=>a.filter(x=>x.type===t).reduce((s,x)=>s+x.amount,0);
+// saldo dompet w pada akhir bulan m = saldo awal terbaru (<= m) + transaksi sejak bulan itu
+function wbal(w,m){
+  const ms=Object.keys(WO).filter(k=>k.endsWith('|'+w)).map(k=>k.split('|')[0]).filter(k=>k<=m).sort(),om=ms.length?ms[ms.length-1]:'',base=om?WO[om+'|'+w]:0;
+  return base+tx.filter(x=>x.wallet===w&&x.date.slice(0,7)<=m&&(!om||x.date.slice(0,7)>=om)).reduce((a,x)=>a+(x.type==='in'?x.amount:-x.amount),0);}
+const wopen=(w,m)=>(m+'|'+w) in WO?WO[m+'|'+w]:wbal(w,shiftM(m,-1));
 const limOf=m=>(PL[m]&&PL[m].lim)||limit;
 const shiftM=(m,n)=>{const d=new Date(m+'-01T00:00');d.setMonth(d.getMonth()+n);return ymd(d).slice(0,7)};
 const mLabel=(m,o={month:'long',year:'numeric'})=>new Date(m+'-01T00:00').toLocaleDateString('id-ID',o);
@@ -434,12 +472,17 @@ function render(){
   document.querySelectorAll('#tabs [data-t],#mmenu [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   for(const t of['sum','cal','tx'])$('#v-'+t).hidden=tab!==t;
   const mo=tx.filter(x=>x.date.slice(0,7)===M),inM=sum(mo,'in'),outM=sum(mo,'out'),lim=limOf(M);
-  $('#bal').textContent=rp(sum(tx,'in')-sum(tx,'out'));
-  $('#balNote').textContent=mLabel(M,{month:'long'})+': '+(inM-outM>=0?'+':'−')+rp(Math.abs(inM-outM));
-  $('#wallets').innerHTML=WALLETS.map(w=>{const a=tx.filter(x=>x.wallet===w);return `<div class="w"><span class="sub">${w}</span><b>${rp(sum(a,'in')-sum(a,'out'))}</b></div>`}).join('');
+  const wb=WALLETS.map(w=>wbal(w,M)),totS=wb.reduce((a,b)=>a+b,0);
+  $('#bal').textContent=rp(totS);
+  $('#balNote').textContent=mLabel(M,{month:'long'})+': '+(inM-outM>=0?'+':'−')+rp(Math.abs(inM-outM))+' · ketuk dompet untuk ubah saldo';
+  $('#wallets').innerHTML=WALLETS.map((w,i)=>EW===w?`<div class="w"><span class="sub">${w}</span><input id="wedit" type="number" inputmode="numeric" value="${Math.round(wb[i])}" style="width:140px;text-align:right;font-weight:700" aria-label="Saldo ${w}"></div>`:`<div class="w" data-w="${w}" style="cursor:pointer" role="button" tabindex="0"><span class="sub">${w} ✎</span><b>${rp(wb[i])}</b></div>`).join('');
+  if(EW){const e=$('#wedit');if(e&&document.activeElement!==e){e.focus();e.select();}}
   const [y,mm]=M.split('-').map(Number),dim=new Date(y,mm,0).getDate(),cur=today().slice(0,7)===M,el=cur?new Date().getDate():(M<today().slice(0,7)?dim:0);
-  const tg=PL[M]&&PL[M].target;
-  $('#stats').innerHTML=`<div class="stat hot"><span>Pemasukan</span><b>${rp(inM)}</b></div><div class="stat"><span class="sub">Pengeluaran</span><b>${rp(outM)}</b></div><div class="stat"><span class="sub">Rata-rata per hari</span><b>${rp(el?outM/el:0)}</b></div><div class="stat"><span class="sub">Sisa uang bulan ini</span><b>${rp((tg||0)+inM-outM)}</b><small class="sub" style="display:block;margin-top:4px">${tg?'Uang awal '+rp(tg)+' + masuk − keluar':'Belum isi uang awal (Atur bulan)'}</small></div>`;
+  const openT=WALLETS.reduce((a,w)=>a+wopen(w,M),0),pn=posOf(M),
+    commit=pn.reduce((a,c)=>a+Math.max(BG[M+'|'+c]||0,mo.filter(x=>x.type==='out'&&x.cat===c).reduce((s,x)=>s+x.amount,0)),0),
+    otherOut=mo.filter(x=>x.type==='out'&&!pn.includes(x.cat)).reduce((a,x)=>a+x.amount,0),
+    sisa=openT+inM-commit-otherOut;
+  $('#stats').innerHTML=`<div class="stat hot"><span>Pemasukan</span><b>${rp(inM)}</b></div><div class="stat"><span class="sub">Pengeluaran</span><b>${rp(outM)}</b></div><div class="stat"><span class="sub">Rata-rata per hari</span><b>${rp(el?outM/el:0)}</b></div><div class="stat"><span class="sub">Sisa uang bulan ini</span><b>${rp(sisa)}</b><small class="sub" style="display:block;margin-top:4px">Uang awal ${rp(openT)} + masuk − pos (dianggap pasti keluar)${commit?' · pos '+rp(commit):''}</small></div>`;
   const data=[];for(let i=5;i>=0;i--){const k=shiftM(M,-i),a=tx.filter(x=>x.date.slice(0,7)===k);data.push({k,l:mLabel(k,{month:'short'}),i:sum(a,'in'),o:sum(a,'out')})}
   const mx=Math.max(1,...data.flatMap(d=>[d.i,d.o]));
   $('#chart').innerHTML=data.map(d=>`<button class="col ${d.k===M?'on':''}" data-m="${d.k}" title="${d.l}: masuk ${rp(d.i)}, keluar ${rp(d.o)}"><div class="pair"><i style="height:${d.i/mx*100}%;background:var(--dark)"></i><i style="height:${d.o/mx*100}%;background:var(--acc)"></i></div><span class="sub">${d.l}</span></button>`).join('');
@@ -476,15 +519,16 @@ function renderTx(mo){
 const pcache={};
 async function proofUrl(p){
   if(pcache[p])return pcache[p];
-  const r=canWrite()?await api(fileUrl(p)+'?ref='+encodeURIComponent(cfg.branch),{headers:{Accept:'application/vnd.github.raw+json'}}):await fetch(p);
-  if(!r.ok)throw new Error('foto tidak ditemukan');return pcache[p]=URL.createObjectURL(await r.blob());
+  let blob;
+  if(p.startsWith('drive:')){const j=await gas('photo',{id:p.slice(6)}),bin=atob(j.data),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);blob=new Blob([u8],{type:j.mime||'image/jpeg'});}
+  else{const r=ghOk()?await api(fileUrl(p)+'?ref='+encodeURIComponent(cfg.branch),{headers:{Accept:'application/vnd.github.raw+json'}}):await fetch(p);if(!r.ok)throw new Error('foto tidak ditemukan');blob=await r.blob();}
+  return pcache[p]=URL.createObjectURL(blob);
 }
 function loadThumbs(){document.querySelectorAll('img[data-p]:not([src])').forEach(i=>proofUrl(i.dataset.p).then(u=>i.src=u).catch(()=>{}));}
 async function showProof(p){try{$('#big').src=await proofUrl(p);$('#idlg').showModal();}catch(e){toast('Foto tidak bisa dibuka: '+e.message);}}
 const upProof=(blob,m)=>enqueue(async()=>{
-  const path=`receipts/${m}/${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
-  const b=new Uint8Array(await new Response(blob).arrayBuffer()),r=await api(fileUrl(path),{method:'PUT',body:JSON.stringify({message:'Tambah bukti '+path,content:b64(b),branch:cfg.branch})});
-  if(!r.ok)throw new Error('GitHub '+r.status);return path;});
+  const b=new Uint8Array(await new Response(blob).arrayBuffer()),j=await gas('upload',{month:m,data:b64(b)});
+  return 'drive:'+j.id;});
 
 // ---------- pembaca teks (OCR) ----------
 const MON={jan:1,feb:2,mar:3,apr:4,mei:5,may:5,jun:6,jul:7,agu:8,ags:8,agt:8,aug:8,sep:9,okt:10,oct:10,nov:11,nop:11,des:12,dec:12};
@@ -694,29 +738,42 @@ $('#rlist').addEventListener('change',e=>{const k=e.target.dataset.ik,r=e.target
 $('#rlist').addEventListener('click',e=>{const b=e.target.closest('[data-ir]');if(!b)return;const x=Q[+b.closest('.rv').dataset.i];x.items.splice(+b.closest('[data-j]').dataset.j,1);fin(x);drawQ();});
 $('#rsave').onclick=async()=>{const ok=Q.filter(x=>x.amount>0);if(!ok.length){toast('Isi nominal dulu.');return;}$('#rsave').disabled=true;await saveItems(ok);Q=[];$('#rdlg').close();toast(ok.length+' transaksi tersimpan');};
 $('#reload').onclick=loadDb;
+// ubah saldo dompet langsung di tampilan
+$('#wallets').addEventListener('click',e=>{const w=e.target.closest('[data-w]');if(!w)return;if(!canWrite()){needTok();return;}EW=w.dataset.w;render();});
+$('#wallets').addEventListener('keydown',e=>{const w=e.target.closest('[data-w]');if(w&&(e.key==='Enter'||e.key===' ')){e.preventDefault();w.click();}});
+function commitWallet(){
+  const e=$('#wedit');if(!e||!EW)return;const w=EW,v=Number(e.value);EW=null;
+  if(e.value===''||!isFinite(v)){render();return;}
+  const inM=tx.filter(x=>x.wallet===w&&x.date.slice(0,7)===M).reduce((a,x)=>a+(x.type==='in'?x.amount:-x.amount),0);
+  if(!change(()=>db.run('INSERT OR REPLACE INTO wopen(month,wallet,amount) VALUES(?,?,?)',[M,w,v-inM])))render();}
+$('#wallets').addEventListener('focusout',e=>{if(e.target.id==='wedit')setTimeout(commitWallet,0);});
+$('#wallets').addEventListener('keydown',e=>{if(e.target.id==='wedit'){if(e.key==='Enter')e.target.blur();else if(e.key==='Escape'){EW=null;render();}}});
 // atur bulan
 const posRow=(n='',v='')=>`<div class="prow" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center"><input data-n placeholder="Untuk apa (cth: Makan)" maxlength="30" value="${esc(n)}" aria-label="Nama pos"><input data-v type="number" min="0" inputmode="numeric" placeholder="Total Rp" value="${v}" aria-label="Total"><button type="button" class="btn" data-posdel aria-label="Hapus pos" style="padding:8px 12px">✕</button></div>`;
 function fillPlan(m,src){
-  const f=$('#pform');$('#pt').textContent='Atur '+mLabel(M);f.target.value=(PL[src]&&PL[src].target)||'';
+  const f=$('#pform');$('#pt').textContent='Atur '+mLabel(M);
+  WALLETS.forEach((w,i)=>f['w'+i].value=Math.round(wopen(w,M)));
   const ps=posOf(src);$('#pcats').innerHTML=(ps.length?ps.map(c=>posRow(c,BG[src+'|'+c]||'')):[posRow()]).join('');chkPlan();}
-function chkPlan(){$('#pwarn').textContent='';}
+function chkPlan(){const f=$('#pform');let t=0;WALLETS.forEach((w,i)=>t+=Number(f['w'+i].value)||0);f.target.value=t;
+  let c=0;document.querySelectorAll('#pcats .prow').forEach(r=>c+=Number(r.querySelector('[data-v]').value)||0);
+  const inM=sum(tx.filter(x=>x.date.slice(0,7)===M),'in'),av=t+inM;
+  $('#pwarn').textContent=c?('Pos pengeluaran Rp'+Math.round(c).toLocaleString('id-ID')+' dianggap pasti keluar. Sisa: Rp'+Math.round(av-c).toLocaleString('id-ID')+(av-c<0?' (melebihi uang yang ada!)':'')):'';}
 $('#plan').onclick=()=>{if(!canWrite()){needTok();return;}fillPlan(M,M);$('#pdlg').showModal();};
 $('#copyPrev').onclick=()=>{fillPlan(M,shiftM(M,-1));toast('Disalin dari '+mLabel(shiftM(M,-1)));};
 $('#pform').addEventListener('input',chkPlan);
 $('#addPos').onclick=()=>{$('#pcats').insertAdjacentHTML('beforeend',posRow());$('#pcats').lastElementChild.querySelector('[data-n]').focus();};
 $('#pcats').addEventListener('click',e=>{const d=e.target.closest("[data-posdel]");if(d)d.closest('.prow').remove();});
 $('#pform').addEventListener('submit',e=>{const f=e.target;
-  change(()=>{db.run('INSERT OR REPLACE INTO plans(month,lim,target) VALUES(?,?,?)',[M,null,Number(f.target.value)||null]);db.run('DELETE FROM budgets WHERE month=?',[M]);
+  change(()=>{db.run('INSERT OR REPLACE INTO plans(month,lim,target) VALUES(?,?,?)',[M,null,Number(f.target.value)||null]);
+    WALLETS.forEach((w,i)=>{const v=f['w'+i].value;if(v==='')db.run('DELETE FROM wopen WHERE month=? AND wallet=?',[M,w]);else db.run('INSERT OR REPLACE INTO wopen(month,wallet,amount) VALUES(?,?,?)',[M,w,Number(v)||0]);});db.run('DELETE FROM budgets WHERE month=?',[M]);
     document.querySelectorAll('#pcats .prow').forEach(r=>{const n=r.querySelector('[data-n]').value.replace(/\|/g,' ').trim(),v=Number(r.querySelector('[data-v]').value);if(n&&v>0)db.run('INSERT OR REPLACE INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,n,v]);});});});
 // notif
 $('#nbtn').onclick=()=>{$('#nmsg').textContent=NOTIF||'Tidak ada notifikasi.';$('#ndlg').showModal();};
-$('#nform').addEventListener('submit',e=>{const t=e.target.token.value.trim();e.target.token.value='';if(t){setToken(t);toast('Token disimpan, memuat ulang data…');}});
+$('#ngo').onclick=()=>{$('#ndlg').close();needTok();};
 // token
 const needTok=()=>$('#cdlg').showModal();
-$('#cfg').onclick=()=>{if(confirm('Keluar dari Ardian?')){AUTH.clear();try{localStorage.removeItem('finexy-cfg');}catch(e){}location.reload();}};
-$('#cform').addEventListener('submit',e=>{cfg.token=e.target.token.value.trim();AUTH.set(cfg.token);
-  try{localStorage.setItem('finexy-cfg',JSON.stringify(cfg));}catch(x){}
-  setTimeout(loadDb,0);});
+$('#cfg').onclick=()=>{if(confirm('Keluar dari Ardian?')){AUTH.clear();location.reload();}};
+$('#cform').addEventListener('submit',e=>{cfg.gas=e.target.gas.value.trim();cfg.key=e.target.key.value.trim();saveCfg();setTimeout(loadDb,0);});
 
 // ---------- menu titik tiga (HP) ----------
 (function(){
