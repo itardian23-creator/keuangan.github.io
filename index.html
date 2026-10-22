@@ -46,6 +46,8 @@ header,.row{display:flex;align-items:center;justify-content:space-between;gap:12
 .mmenu button{text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-weight:500;padding:12px 14px;border-radius:12px;cursor:pointer;min-height:44px}
 .mmenu button:hover,.mmenu button:active{background:var(--chip)}
 .mmenu button.on{color:var(--acc);background:var(--chip);font-weight:700}
+.menu-btn{position:relative}.menu-btn.has::after,#nbtn.has::after{content:"";position:absolute;top:6px;right:6px;width:10px;height:10px;border-radius:50%;background:var(--bad);border:2px solid var(--panel)}#nbtn{position:relative}
+.mmenu button.has::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-left:8px}
 .mmenu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 @media(max-width:760px){.navlinks,.dtools,.mrow #plan{display:none}.menu-wrap{display:block}}
 
@@ -164,7 +166,7 @@ footer{padding:8px 0 0;color:var(--mute);font-size:.85rem;text-align:center}
   .tools select,.tools input{width:100%;flex:1 1 100%}
   .rv .f{grid-template-columns:1fr}
 }
-@media(max-width:1100px){.ib .lbl{display:none}}
+@media(max-width:1100px){.ib{padding:0 8px;font-size:13px}.tright .status{max-width:22vw}}
 /* ---------- iOS Safari & Android ---------- */
 .app{padding-top:88px;padding-top:calc(88px + env(safe-area-inset-top,0px))}
 .topnav{padding-top:14px;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-left:max(clamp(14px,4vw,40px),env(safe-area-inset-left,0px));padding-right:max(clamp(14px,4vw,40px),env(safe-area-inset-right,0px))}
@@ -215,12 +217,13 @@ window.AUTH={
   <div class="tright">
     <span class="status" id="status">Memuat…</span>
     <div class="dtools">
-      <button class="ib" id="reload" aria-label="Muat ulang" title="Muat ulang">⟳</button>
-      <button class="ib" id="cfg" aria-label="Keluar" title="Keluar">🚪</button>
-      <button class="ib" id="up" aria-label="Upload struk atau bukti transfer" title="Upload struk / bukti TF">📷<span class="lbl">&nbsp;Upload struk</span></button>
+      <button class="ib" id="nbtn" data-notif type="button">Notif</button>
+      <button class="ib" id="reload" type="button">Muat ulang</button>
+      <button class="ib" id="up" type="button" title="Upload struk / bukti TF">Upload struk</button>
+      <button class="ib" id="cfg" type="button">Keluar</button>
     </div>
     <div class="menu-wrap">
-      <button type="button" class="menu-btn" id="menuBtn" aria-label="Buka menu" aria-expanded="false" aria-controls="mmenu">
+      <button type="button" class="menu-btn" id="menuBtn" data-notif aria-label="Buka menu" aria-expanded="false" aria-controls="mmenu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
       </button>
       <nav class="mmenu" id="mmenu" aria-label="Menu">
@@ -228,20 +231,20 @@ window.AUTH={
         <button type="button" data-t="cal">Kalender</button>
         <button type="button" data-t="tx">Transaksi</button>
         <hr>
+        <button type="button" data-go="nbtn" data-notif>Notif</button>
         <button type="button" data-go="plan">Atur bulan ini</button>
-        <button type="button" data-go="up">📷 Upload struk / bukti TF</button>
-        <button type="button" data-go="reload">⟳ Muat ulang</button>
-        <button type="button" data-go="cfg">🚪 Keluar</button>
+        <button type="button" data-go="up">Upload struk / bukti TF</button>
+        <button type="button" data-go="reload">Muat ulang</button>
+        <button type="button" data-go="cfg">Keluar</button>
       </nav>
     </div>
   </div>
 </div>
 <div class="app">
   <header>
-    <div><p class="eyebrow">Catatan keuangan</p><h1 id="hi">Halo!</h1><div class="sub hsub">Data tersimpan di <b>finexy.db</b>, foto bukti di folder <b>receipts/</b> pada repo GitHub kamu.</div></div>
+    <div><p class="eyebrow">Catatan keuangan</p><h1 id="hi">Keluarga A2</h1><div class="sub hsub">Data tersimpan di <b>finexy.db</b>, foto bukti di folder <b>receipts/</b> pada repo GitHub kamu.</div></div>
     <button class="btn acc" id="add" aria-label="Catat transaksi">+ Catat</button>
   </header>
-  <div class="banner" id="banner"></div>
   <div class="row mrow">
     <div class="mnav"><button class="btn" id="mp" aria-label="Bulan sebelumnya">‹</button><b id="ml"></b><button class="btn" id="mn" aria-label="Bulan berikutnya">›</button><button class="btn" id="mt">Bulan ini</button></div>
     <button class="btn" id="plan">Atur bulan ini</button>
@@ -252,7 +255,7 @@ window.AUTH={
     <section class="s7 stats" id="stats"></section>
         <section class="card s5"><h2>Pemasukan vs pengeluaran</h2><div class="sub">6 bulan sampai bulan terpilih · ketuk batang untuk pindah</div><div class="chart" id="chart"></div>
       <div class="legend"><span><i class="dot" style="background:var(--dark)"></i>Pemasukan</span><span><i class="dot" style="background:var(--acc)"></i>Pengeluaran</span></div></section>
-    <section class="card s7"><h2>Pengeluaran per kategori</h2><div class="sub">Dibanding anggaran kategori bulan ini</div><div id="cats"></div></section>
+    <section class="card s7"><h2>Pos pengeluaran</h2><div class="sub">Total, terpakai, dan sisa tiap pos bulan ini</div><div id="cats"></div></section>
   </div>
 
   <div class="grid" id="v-cal" hidden>
@@ -284,10 +287,19 @@ window.AUTH={
 
 <dialog id="pdlg"><form id="pform" method="dialog">
   <h2 id="pt">Atur bulan</h2><div class="sub">Pengaturan ini hanya berlaku untuk bulan terpilih. Semua isian boleh dikosongkan.</div>
-  <label>Target pemasukan (Rp)<input name="target" type="number" min="0" inputmode="numeric"></label>
-  <div class="sub" style="margin-top:4px"><b>Anggaran per kategori (Rp)</b></div><div id="pcats" style="display:grid;gap:8px;grid-template-columns:1fr 1fr"></div>
+  <label>Uang awal bulan ini (Rp)<input name="target" type="number" min="0" inputmode="numeric" placeholder="Uang yang kamu pegang di awal bulan"></label>
+  <div class="sub" style="margin-top:4px"><b>Pos pengeluaran</b> · isi untuk apa dan total berapa</div><div id="pcats" style="display:grid;gap:8px"></div>
+  <button class="btn" type="button" id="addPos" style="justify-self:start">+ Tambah pos</button>
   <div class="note" id="pwarn"></div>
   <div class="row"><button class="btn" type="button" id="copyPrev">Salin dari bulan lalu</button><span><button class="btn" type="button" data-close>Batal</button> <button class="btn acc" type="submit">Simpan</button></span></div>
+</form></dialog>
+
+<dialog id="ndlg"><form id="nform" method="dialog">
+  <h2>Notif</h2>
+  <div id="nmsg" style="padding:12px 14px;border-radius:14px;background:var(--chip);border-left:4px solid var(--warn);font-size:14px"></div>
+  <label>Token GitHub baru<input name="token" type="password" autocomplete="off" placeholder="github_pat_…"></label>
+  <div class="sub">Kalau notif soal token, tempel token baru di sini lalu simpan. Token hanya disimpan di browser ini.</div>
+  <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close>Tutup</button><button class="btn acc" type="submit">Simpan token</button></div>
 </form></dialog>
 
 <dialog id="cdlg"><form id="cform" method="dialog">
@@ -323,6 +335,9 @@ const short=n=>n>=1e6?(n/1e6).toFixed(1).replace('.0','').replace('.',',')+'jt':
 const WALLETS=['Tunai','Bank','E-Wallet'];
 const CATS=['Makanan','Transport','Belanja','Tagihan','Hiburan','Kesehatan','Gaji','Transfer','Lainnya'];
 const EXP=CATS.filter(c=>c!=='Gaji');
+// daftar pos bulan terpilih (bebas dibuat sendiri) + kategori bawaan
+const posOf=m=>Object.keys(BG).filter(k=>k.startsWith(m+'|')).map(k=>k.slice(m.length+1));
+const catList=(extra)=>{const a=[...posOf(M),...CATS];if(extra)a.push(extra);return [...new Set(a)];};
 const SCHEMA=`CREATE TABLE IF NOT EXISTS transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,amount REAL NOT NULL CHECK(amount>0),type TEXT NOT NULL CHECK(type IN('in','out')),cat TEXT,wallet TEXT,date TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);INSERT OR IGNORE INTO settings VALUES('limit','3000000');
 CREATE TABLE IF NOT EXISTS plans(month TEXT PRIMARY KEY,lim REAL,target REAL);
@@ -347,7 +362,9 @@ const canWrite=()=>!!(cfg.token&&cfg.owner&&cfg.repo);
 const api=(p,o={})=>fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}${p}`,{...o,headers:{Authorization:'Bearer '+cfg.token,'X-GitHub-Api-Version':'2022-11-28',Accept:'application/vnd.github+json',...(o.headers||{})}});
 const fileUrl=(p=cfg.path)=>`/contents/${p.split('/').map(encodeURIComponent).join('/')}`;
 function setStatus(t,c=''){const s=$('#status');s.textContent=t;s.className='status '+c;}
-function banner(t){const b=$('#banner');b.style.display=t?'block':'none';b.textContent=t||'';}
+let NOTIF='';
+function banner(t){NOTIF=t||'';document.querySelectorAll('[data-notif]').forEach(b=>b.classList.toggle('has',!!NOTIF));}
+function setToken(t){cfg.token=t;AUTH.set(t);try{localStorage.setItem('finexy-cfg',JSON.stringify(cfg));}catch(x){}setTimeout(loadDb,0);}
 let tt;function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(tt);tt=setTimeout(()=>e.style.display='none',4000);}
 
 // ---------- database ----------
@@ -406,7 +423,7 @@ const fDate=d=>new Date(d+'T00:00').toLocaleDateString('id-ID',{day:'numeric',mo
 function setMonth(m){M=m;D=today().slice(0,7)===m?today():m+'-01';render();}
 function render(){
   const h=new Date().getHours();
-  $('#hi').textContent=(h<11?'Selamat pagi':h<15?'Selamat siang':h<18?'Selamat sore':'Selamat malam')+'!';
+  $('#hi').textContent='Keluarga A2';
   $('#ml').textContent=mLabel(M);
   document.querySelectorAll('#tabs [data-t],#mmenu [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   for(const t of['sum','cal','tx'])$('#v-'+t).hidden=tab!==t;
@@ -416,13 +433,15 @@ function render(){
   $('#wallets').innerHTML=WALLETS.map(w=>{const a=tx.filter(x=>x.wallet===w);return `<div class="w"><span class="sub">${w}</span><b>${rp(sum(a,'in')-sum(a,'out'))}</b></div>`}).join('');
   const [y,mm]=M.split('-').map(Number),dim=new Date(y,mm,0).getDate(),cur=today().slice(0,7)===M,el=cur?new Date().getDate():(M<today().slice(0,7)?dim:0);
   const tg=PL[M]&&PL[M].target;
-  $('#stats').innerHTML=`<div class="stat hot"><span>Pemasukan</span><b>${rp(inM)}</b>${tg?`<small>${Math.round(inM/tg*100)}% dari target ${rp(tg)}</small>`:''}</div><div class="stat"><span class="sub">Pengeluaran</span><b>${rp(outM)}</b></div><div class="stat"><span class="sub">Rata-rata per hari</span><b>${rp(el?outM/el:0)}</b></div><div class="stat"><span class="sub">Tingkat tabungan</span><b>${inM?Math.round((inM-outM)/inM*100):0}%</b></div>`;
+  $('#stats').innerHTML=`<div class="stat hot"><span>Pemasukan</span><b>${rp(inM)}</b></div><div class="stat"><span class="sub">Pengeluaran</span><b>${rp(outM)}</b></div><div class="stat"><span class="sub">Rata-rata per hari</span><b>${rp(el?outM/el:0)}</b></div><div class="stat"><span class="sub">Sisa uang bulan ini</span><b>${rp((tg||0)+inM-outM)}</b><small class="sub" style="display:block;margin-top:4px">${tg?'Uang awal '+rp(tg)+' + masuk − keluar':'Belum isi uang awal (Atur bulan)'}</small></div>`;
   const data=[];for(let i=5;i>=0;i--){const k=shiftM(M,-i),a=tx.filter(x=>x.date.slice(0,7)===k);data.push({k,l:mLabel(k,{month:'short'}),i:sum(a,'in'),o:sum(a,'out')})}
   const mx=Math.max(1,...data.flatMap(d=>[d.i,d.o]));
   $('#chart').innerHTML=data.map(d=>`<button class="col ${d.k===M?'on':''}" data-m="${d.k}" title="${d.l}: masuk ${rp(d.i)}, keluar ${rp(d.o)}"><div class="pair"><i style="height:${d.i/mx*100}%;background:var(--dark)"></i><i style="height:${d.o/mx*100}%;background:var(--acc)"></i></div><span class="sub">${d.l}</span></button>`).join('');
-  const cs=EXP.map(c=>({c,s:mo.filter(x=>x.type==='out'&&x.cat===c).reduce((a,x)=>a+x.amount,0),b:BG[M+'|'+c]||0})).filter(x=>x.s||x.b);
-  const cm=Math.max(1,...cs.map(x=>Math.max(x.s,x.b)));
-  $('#cats').innerHTML=cs.length?cs.map(x=>`<div class="cat"><span>${x.c}</span><div class="bar" style="margin:0"><i style="width:${x.s/cm*100}%;background:${x.b&&x.s>x.b?'var(--bad)':'var(--acc)'}"></i></div><span class="sub" style="text-align:right">${rp(x.s)}${x.b?' / '+rp(x.b):''}</span></div>`).join(''):'<div class="empty">Belum ada pengeluaran bulan ini.</div>';
+  const names=[...new Set([...posOf(M),...mo.filter(x=>x.type==='out'&&x.cat).map(x=>x.cat)])];
+  const cs=names.map(c=>({c,s:mo.filter(x=>x.type==='out'&&x.cat===c).reduce((a,x)=>a+x.amount,0),b:BG[M+'|'+c]||0})).filter(x=>x.s||x.b).sort((a,b)=>(b.b>0)-(a.b>0)||b.s-a.s);
+  const cm=Math.max(1,...cs.map(x=>x.s));
+  $('#cats').innerHTML=cs.length?cs.map(x=>{const left=x.b-x.s,over=x.b&&left<0,w=x.b?Math.min(100,x.s/x.b*100):x.s/cm*100;
+    return `<div style="margin:14px 0"><div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><b>${esc(x.c)}</b>${x.b?`<span style="font-weight:700;color:${over?'var(--bad)':'inherit'}">${over?'Lebih '+rp(-left):'Sisa '+rp(left)}</span>`:''}</div><div class="bar" style="margin:6px 0"><i style="width:${w}%;background:${over?'var(--bad)':'var(--acc)'}"></i></div><div class="sub">${x.b?'Total '+rp(x.b)+' · terpakai '+rp(x.s):'Terpakai '+rp(x.s)+' · belum ada anggaran'}</div></div>`}).join(''):'<div class="empty">Belum ada pos atau pengeluaran bulan ini.</div>';
   renderCal(mo,dim,y,mm);renderDay();renderTx(mo);loadThumbs();
 }
 function renderCal(mo,dim,y,mm){
@@ -548,7 +567,7 @@ function drawQ(){
   <div class="f"><label>Jenis<select data-k="type"><option value="out"${x.type==='out'?' selected':''}>Pengeluaran</option><option value="in"${x.type==='in'?' selected':''}>Pemasukan</option></select></label>
   <label>Jumlah (Rp)<input data-k="amount" type="number" min="1" value="${x.amount||''}"></label>
   <label class="full">Keterangan<input data-k="title" maxlength="60" value="${esc(x.title)}"></label>
-  <label>Kategori<select data-k="cat">${CATS.map(c=>`<option${c===x.cat?' selected':''}>${c}</option>`).join('')}</select></label>
+  <label>Kategori<select data-k="cat">${catList(x.cat).map(c=>`<option${c===x.cat?' selected':''}>${esc(c)}</option>`).join('')}</select></label>
   <label>Dompet<select data-k="wallet">${WALLETS.map(c=>`<option${c===x.wallet?' selected':''}>${c}</option>`).join('')}</select></label>
   <label>Tanggal<input data-k="date" type="date" value="${x.date}"></label><label>Catatan<input data-k="note" value="${esc(x.note)}"></label></div>
   ${!x.amount?'<div class="note">Nominal tidak terbaca jelas. Isi manual.</div>':''}${!x.dateOk?'<div class="note">Tanggal tidak terbaca, dipakai tanggal cadangan.</div>':''}${x.dup?'<div class="note">Mungkin duplikat: sudah ada transaksi dengan nominal dan tanggal sama.</div>':''}
@@ -579,7 +598,7 @@ $('#tabs').onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;render();}}
 $('#mp').onclick=()=>setMonth(shiftM(M,-1));$('#mn').onclick=()=>setMonth(shiftM(M,1));$('#mt').onclick=()=>setMonth(today().slice(0,7));
 function openTx(x,date){
   if(!canWrite()){needTok();return;}
-  const f=$('#form');f.reset();f.cat.innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');
+  const f=$('#form');f.reset();f.cat.innerHTML=catList(x&&x.cat).map(c=>`<option>${esc(c)}</option>`).join('');
   $('#dt').textContent=x?'Ubah transaksi':'Catat transaksi';
   if(x){f.id.value=x.id;f.type.value=x.type;f.title.value=x.title;f.amount.value=x.amount;f.cat.value=x.cat;f.wallet.value=x.wallet;f.date.value=x.date;f.note.value=x.note||'';}
   else{f.id.value='';f.date.value=date||today();}
@@ -613,20 +632,26 @@ $('#rcancel').onclick=()=>{Q=[];$('#rdlg').close();};
 $('#rsave').onclick=async()=>{const ok=Q.filter(x=>x.amount>0);if(!ok.length){toast('Isi nominal dulu.');return;}$('#rsave').disabled=true;await saveItems(ok);Q=[];$('#rdlg').close();toast(ok.length+' transaksi tersimpan');};
 $('#reload').onclick=loadDb;
 // atur bulan
+const posRow=(n='',v='')=>`<div class="prow" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center"><input data-n placeholder="Untuk apa (cth: Makan)" maxlength="30" value="${esc(n)}" aria-label="Nama pos"><input data-v type="number" min="0" inputmode="numeric" placeholder="Total Rp" value="${v}" aria-label="Total"><button type="button" class="btn" data-posdel aria-label="Hapus pos" style="padding:8px 12px">✕</button></div>`;
 function fillPlan(m,src){
   const f=$('#pform');$('#pt').textContent='Atur '+mLabel(M);f.target.value=(PL[src]&&PL[src].target)||'';
-  $('#pcats').innerHTML=EXP.map(c=>`<label>${c}<input data-c="${c}" type="number" min="0" value="${BG[src+'|'+c]||''}"></label>`).join('');chkPlan();}
+  const ps=posOf(src);$('#pcats').innerHTML=(ps.length?ps.map(c=>posRow(c,BG[src+'|'+c]||'')):[posRow()]).join('');chkPlan();}
 function chkPlan(){$('#pwarn').textContent='';}
 $('#plan').onclick=()=>{if(!canWrite()){needTok();return;}fillPlan(M,M);$('#pdlg').showModal();};
 $('#copyPrev').onclick=()=>{fillPlan(M,shiftM(M,-1));toast('Disalin dari '+mLabel(shiftM(M,-1)));};
 $('#pform').addEventListener('input',chkPlan);
+$('#addPos').onclick=()=>{$('#pcats').insertAdjacentHTML('beforeend',posRow());$('#pcats').lastElementChild.querySelector('[data-n]').focus();};
+$('#pcats').addEventListener('click',e=>{const d=e.target.closest("[data-posdel]");if(d)d.closest('.prow').remove();});
 $('#pform').addEventListener('submit',e=>{const f=e.target;
   change(()=>{db.run('INSERT OR REPLACE INTO plans(month,lim,target) VALUES(?,?,?)',[M,null,Number(f.target.value)||null]);db.run('DELETE FROM budgets WHERE month=?',[M]);
-    document.querySelectorAll('#pcats input').forEach(i=>{const v=Number(i.value);if(v>0)db.run('INSERT INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,i.dataset.c,v]);});});});
+    document.querySelectorAll('#pcats .prow').forEach(r=>{const n=r.querySelector('[data-n]').value.replace(/\|/g,' ').trim(),v=Number(r.querySelector('[data-v]').value);if(n&&v>0)db.run('INSERT OR REPLACE INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,n,v]);});});});
+// notif
+$('#nbtn').onclick=()=>{$('#nmsg').textContent=NOTIF||'Tidak ada notifikasi.';$('#ndlg').showModal();};
+$('#nform').addEventListener('submit',e=>{const t=e.target.token.value.trim();e.target.token.value='';if(t){setToken(t);toast('Token disimpan, memuat ulang data…');}});
 // token
 const needTok=()=>$('#cdlg').showModal();
 $('#cfg').onclick=()=>{if(confirm('Keluar dari Ardian?')){AUTH.clear();try{localStorage.removeItem('finexy-cfg');}catch(e){}location.reload();}};
-$('#cform').addEventListener('submit',e=>{cfg.token=e.target.token.value.trim();
+$('#cform').addEventListener('submit',e=>{cfg.token=e.target.token.value.trim();AUTH.set(cfg.token);
   try{localStorage.setItem('finexy-cfg',JSON.stringify(cfg));}catch(x){}
   setTimeout(loadDb,0);});
 
