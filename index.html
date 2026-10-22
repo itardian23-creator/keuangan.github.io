@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Finexy"><meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Ardian"><meta name="format-detection" content="telephone=no">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#070b16" media="(prefers-color-scheme: dark)">
-<title>Finexy – Catatan Keuangan</title>
+<title>Ardian – Catatan Keuangan</title>
 <style>
 :root{color-scheme:light dark;--bg:#fff;--bg-alt:#f5f7fb;--panel:#fff;--ink:#0b1220;--mute:#5b6579;--line:rgba(15,23,42,.10);--acc:#2563eb;--acc-btn:#2563eb;--dark:#0b1220;--dark-ink:#fff;--ok:#059669;--warn:#d97706;--bad:#e11d48;--chip:#f1f5f9;--glass:rgba(255,255,255,.78);--shadow:0 10px 24px -16px rgba(15,23,42,.18);--shadow-lg:0 18px 34px -18px rgba(37,99,235,.28);--pop:0 24px 48px -16px rgba(15,23,42,.35);--ease:cubic-bezier(.2,.8,.2,1)}
 @media (prefers-color-scheme:dark){:root{--bg:#070b16;--bg-alt:#0b1120;--panel:#0f172a;--ink:#e8edf7;--mute:#97a3ba;--line:rgba(255,255,255,.10);--acc:#60a5fa;--acc-btn:#2563eb;--dark:#e8edf7;--dark-ink:#0b1220;--ok:#34d399;--bad:#fb7185;--chip:rgba(255,255,255,.06);--glass:rgba(15,23,42,.72);--shadow:0 10px 24px -16px rgba(0,0,0,.6);--shadow-lg:0 18px 34px -18px rgba(96,165,250,.3);--pop:0 24px 48px -16px rgba(0,0,0,.7)}}
@@ -184,17 +184,31 @@ dialog.pf[open]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z
 </style>
 </head>
 <body>
+<script>
+// login persisten: simpan di localStorage + cookie cadangan (400 hari), hapus hanya saat menekan Keluar
+window.AUTH={
+  get(){let v='';try{v=localStorage.getItem('finexy-auth')||''}catch(e){}
+    if(!v){const m=document.cookie.match(/(?:^|; )finexy-auth=([^;]*)/);if(m){try{v=decodeURIComponent(m[1])}catch(e){}
+      if(v){try{localStorage.setItem('finexy-auth',v)}catch(e){}}}}
+    return v;},
+  set(v){try{localStorage.setItem('finexy-auth',v)}catch(e){}
+    try{document.cookie='finexy-auth='+encodeURIComponent(v)+'; max-age=34560000; path=/; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'')}catch(e){}
+    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}},
+  clear(){try{localStorage.removeItem('finexy-auth')}catch(e){}
+    try{document.cookie='finexy-auth=; max-age=0; path=/'}catch(e){}}
+};
+</script>
 <div id="gate"><form id="gform" autocomplete="on" method="post" action="#">
-  <div class="logo" style="justify-self:start"><span class="mark" aria-hidden="true"></span><span class="tx">Finexy</span></div>
+  <div class="logo" style="justify-self:start"><span class="mark" aria-hidden="true"></span><span class="tx">Ardian</span></div>
   <h2 style="font-size:1.3rem">Masuk</h2><div class="sub">Catatan keuangan keluarga. Masukkan username dan password.</div>
   <label>Username<input id="gu" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
   <label>Password<input id="gp" name="password" type="password" autocomplete="current-password" required></label>
   <div class="gerr" id="gerr" role="alert"></div>
   <button class="btn acc" type="submit" id="gbtn">Masuk</button>
 </form></div>
-<script>try{if(localStorage.getItem('finexy-auth'))document.getElementById('gate').hidden=true}catch(e){}</script>
+<script>try{if(AUTH.get())document.getElementById('gate').hidden=true}catch(e){}</script>
 <div class="topnav">
-  <div class="logo"><span class="mark" aria-hidden="true"></span><span class="tx">Finexy</span></div>
+  <div class="logo"><span class="mark" aria-hidden="true"></span><span class="tx">Ardian</span></div>
   <nav class="navlinks tabs" id="tabs" aria-label="Tampilan">
     <button type="button" class="on" data-t="sum">Ringkasan</button><button type="button" data-t="cal">Kalender</button><button type="button" data-t="tx">Transaksi</button>
   </nav>
@@ -252,7 +266,7 @@ dialog.pf[open]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z
       <div class="tbl"><table><thead><tr><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th>Tanggal</th><th style="text-align:right">Jumlah</th><th></th></tr></thead><tbody id="rows"></tbody></table></div></section>
   </div>
 </div>
-<footer style="max-width:1120px;margin:0 auto;padding:0 20px 90px">Finexy · catatan keuangan pribadi</footer>
+<footer style="max-width:1120px;margin:0 auto;padding:0 20px 90px">Ardian · catatan keuangan pribadi</footer>
 <div id="toast" role="status"></div>
 <input type="file" id="file" accept="image/*,.heic,.heif" multiple style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 
@@ -322,7 +336,7 @@ let cfg=guessCfg();try{Object.assign(cfg,JSON.parse(localStorage.getItem('finexy
 cfg.auto=true;
 // login: token GitHub tersimpan terenkripsi, hanya terbuka dengan username+password yang benar
 cfg.token='';if(!cfg.owner)cfg.owner='itardian23-creator';if(!cfg.repo)cfg.repo='keuangan.github.io';
-try{cfg.token=localStorage.getItem('finexy-auth')||'';}catch(e){}
+try{cfg.token=AUTH.get();}catch(e){}
 const VAULT='d/+BKNoVCJBHK56vUWYeof0J+vU55ycJai4Zh5PrbggwxPptGgKnRJOxBBXKAhDeXrJFw821zDVPLdoWainAleAogqb8FxWudxTfi9zCM5zShUI69XsC8igK/ITj9/r9a3C31NsS4SsVZ5F5I30P5VjqinpWKNz7/wNaCY0YZtVSLxeoPCdJC5w=',ITER=250000;
 async function unlock(u,p){
   const raw=Uint8Array.from(atob(VAULT),c=>c.charCodeAt(0)),sub=crypto.subtle;
@@ -611,7 +625,7 @@ $('#pform').addEventListener('submit',e=>{const f=e.target;
     document.querySelectorAll('#pcats input').forEach(i=>{const v=Number(i.value);if(v>0)db.run('INSERT INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,i.dataset.c,v]);});});});
 // token
 const needTok=()=>$('#cdlg').showModal();
-$('#cfg').onclick=()=>{if(confirm('Keluar dari Finexy?')){try{localStorage.removeItem('finexy-auth');localStorage.removeItem('finexy-cfg');}catch(e){}location.reload();}};
+$('#cfg').onclick=()=>{if(confirm('Keluar dari Ardian?')){AUTH.clear();try{localStorage.removeItem('finexy-cfg');}catch(e){}location.reload();}};
 $('#cform').addEventListener('submit',e=>{cfg.token=e.target.token.value.trim();
   try{localStorage.setItem('finexy-cfg',JSON.stringify(cfg));}catch(x){}
   setTimeout(loadDb,0);});
@@ -635,7 +649,7 @@ $('#cform').addEventListener('submit',e=>{cfg.token=e.target.token.value.trim();
     try{
       if(!(window.crypto&&crypto.subtle))throw new Error('nocrypto');
       const t=await unlock($('#gu').value,$('#gp').value);
-      cfg.token=t;try{localStorage.setItem('finexy-auth',t);}catch(x){}
+      cfg.token=t;AUTH.set(t);
       $('#gp').value='';g.hidden=true;if(SQL)loadDb();
     }catch(x){
       await new Promise(r=>setTimeout(r,900));
