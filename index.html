@@ -215,7 +215,6 @@ window.AUTH={
     <button type="button" class="on" data-t="sum">Ringkasan</button><button type="button" data-t="cal">Kalender</button><button type="button" data-t="tx">Transaksi</button>
   </nav>
   <div class="tright">
-    <span class="status" id="status">Memuat…</span>
     <div class="dtools">
       <button class="ib" id="nbtn" data-notif type="button">Notif</button>
       <button class="ib" id="reload" type="button">Muat ulang</button>
@@ -301,6 +300,7 @@ window.AUTH={
 
 <dialog id="ndlg"><form id="nform" method="dialog">
   <h2>Notif</h2>
+  <div class="row" style="justify-content:flex-start"><span class="sub">Status koneksi:</span><span class="status" id="status">Memuat…</span></div>
   <div id="nmsg" style="padding:12px 14px;border-radius:14px;background:var(--chip);border-left:4px solid var(--warn);font-size:14px"></div>
   <div class="row" style="justify-content:flex-end"><button class="btn acc" type="button" data-close>Tutup</button></div>
 </form></dialog>
