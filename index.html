@@ -282,7 +282,7 @@ window.AUTH={
   <label>Jumlah (Rp)<input name="amount" type="number" min="1" step="1" required inputmode="numeric" data-money></label>
   <label>Kategori (pos bulan ini)<select name="cat"></select></label><div class="sub" id="chint"></div>
   <label>Jenis (opsional)<input name="jenis" list="jlist" maxlength="40" placeholder="Contoh: Nasi goreng, Bensin, Listrik"></label><datalist id="jlist"></datalist>
-  <label>Dompet<select name="wallet"><option>Tunai</option><option>Bank</option><option>E-Wallet</option></select></label>
+  <label>Dompet<select name="wallet"><option>Tunai</option><option>Bank</option><option>E-Wallet</option></select></label><div class="note" id="whint"></div>
   <label>Tanggal<input name="date" type="date" required></label>
   <label>Catatan<input name="note" maxlength="120"></label>
   <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close>Batal</button><button class="btn acc" type="submit">Simpan</button></div>
@@ -682,16 +682,23 @@ function fillCats(sel){const f=$('#form'),t=f.type.value||'out',m=(f.date.value|
   const l=formCats(t,m,EDIT&&EDIT.type===t?EDIT.cat:'');f.cat.innerHTML=l.map(c=>`<option>${esc(c)}</option>`).join('');if(cur&&l.includes(cur))f.cat.value=cur;
   $('#chint').textContent=(t==='out'&&!posOf(m).length)?'Belum ada pos bulan ini. Tambah lewat Atur bulan ini.':'';fillJenis();}
 function fillJenis(){const f=$('#form'),js=[...new Set(tx.filter(x=>x.jenis&&x.cat===f.cat.value).map(x=>x.jenis))].slice(0,30);$('#jlist').innerHTML=js.map(j=>`<option value="${esc(j)}">`).join('');}
+const wAvail=(w,m)=>wbal(w,m)+(EDIT&&EDIT.type==='out'&&EDIT.wallet===w?EDIT.amount:0);
+function fillWallets(){
+  const f=$('#form'),t=f.type.value,m=(f.date.value||today()).slice(0,7),a=Number(f.amount.value)||0;let first=null,n=0;
+  [...f.wallet.options].forEach((o,i)=>{const w=WALLETS[i],b=wAvail(w,m),bad=t==='out'&&b<Math.max(a,1);o.value=w;o.disabled=bad;o.textContent=w+(t==='out'?' · saldo '+rp(b):'');if(!bad){n++;if(first===null)first=w;}});
+  const cur=f.wallet.selectedOptions[0];if(cur&&cur.disabled&&first)f.wallet.value=first;
+  $('#whint').textContent=(t==='out'&&!n)?'Saldo semua dompet tidak cukup untuk pengeluaran ini. Isi saldo dulu atau kecilkan jumlahnya.':'';}
 function openTx(x,date){
   if(!canWrite()){needTok();return;}
   const f=$('#form');f.reset();FBLOB=null;EDIT=x||null;$('#fstat').textContent='';$('#fthumb').hidden=true;
   f.type.value=x?x.type:'out';f.date.value=x?x.date:(date||today());
   if(x){f.id.value=x.id;f.title.value=x.title;f.amount.value=x.amount;f.wallet.value=x.wallet;f.note.value=x.note||'';f.jenis.value=x.jenis||'';}else f.id.value='';
-  fillCats(x?x.cat:'');
+  fillCats(x?x.cat:'');fillWallets();
   $('#dt').textContent=x?'Ubah transaksi':'Catat transaksi';
   $('#dlg').showModal();}
 $('#add').onclick=()=>openTx(null,tab==='cal'?D:null);
-$('#form').addEventListener('change',e=>{const n=e.target.name;if(n==='type'||n==='date')fillCats();else if(n==='cat')fillJenis();});
+$('#form').addEventListener('change',e=>{const n=e.target.name;if(n==='type'||n==='date'){fillCats();fillWallets();}else if(n==='cat')fillJenis();});
+$('#form').addEventListener('input',e=>{if(e.target.name==='amount')fillWallets();});
 $('#fphoto').onclick=()=>$('#ffile').click();
 $('#ffile').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;
   const f=$('#form'),st=$('#fstat'),bt=$('#fphoto');st.textContent='Membaca foto… (pertama kali agak lama)';bt.disabled=true;
@@ -700,12 +707,13 @@ $('#ffile').onchange=async e=>{const file=e.target.files[0];e.target.value='';if
     if(o.mixed){Q=[{...o,cat:mapCat(o.cat,o.type,o.date),blob,url:URL.createObjectURL(blob),text,dup:false}];Q[0].dup=dup(Q[0]);bt.disabled=false;st.textContent='';$('#dlg').close();$('#rdlg').showModal();drawQ();return;}
     FBLOB=blob;f.type.value=o.type;if(o.items&&o.items.length)f.jenis.value=topNames(o.items).slice(0,40);if(o.dateOk)f.date.value=o.date;
     f.amount.value=o.amount||'';f.title.value=o.title||'';f.wallet.value=o.wallet;if(o.note)f.note.value=o.note;
-    fillCats(mapCat(o.cat,o.type,f.date.value)||'');
+    fillCats(mapCat(o.cat,o.type,f.date.value)||'');fillWallets();
     const th=$('#fthumb');th.src=URL.createObjectURL(blob);th.hidden=false;
     st.textContent=o.amount?'Terbaca '+rp(o.amount)+'. Cek lagi sebelum simpan.':'Nominal tidak terbaca, isi manual.';
   }catch(x){st.textContent='Gagal membaca foto: '+x.message;}
   bt.disabled=false;};
 $('#form').addEventListener('submit',async e=>{const f=e.target,a=Number(f.amount.value);if(!(a>0)||!f.title.value.trim())return;
+  if(f.type.value==='out'&&wAvail(f.wallet.value,f.date.value.slice(0,7))<a){e.preventDefault();toast('Saldo '+f.wallet.value+' tidak cukup. Pilih dompet lain.');fillWallets();return;}
   const p=[f.title.value.trim(),a,f.type.value,f.cat.value||null,f.wallet.value,f.date.value,f.note.value.trim()||null,f.jenis.value.trim()||null],id=f.id.value,dt=f.date.value,blob=FBLOB;FBLOB=null;
   let proof=null;
   if(blob){toast('Mengunggah foto…');try{proof=await upProof(blob,dt.slice(0,7));}catch(x){toast('Foto gagal diunggah ('+x.message+'), transaksi tetap disimpan.');}}
