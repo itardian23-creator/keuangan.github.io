@@ -18,7 +18,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-ap
   background-image:linear-gradient(to right,rgba(127,127,127,.07) 1px,transparent 1px),linear-gradient(to bottom,rgba(127,127,127,.07) 1px,transparent 1px);
   background-image:linear-gradient(to right,color-mix(in srgb,var(--ink) 4%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in srgb,var(--ink) 4%,transparent) 1px,transparent 1px);background-size:60px 60px;background-repeat:no-repeat;background-position:top center}
 body::before{content:"";position:fixed;top:0;right:0;bottom:0;left:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,transparent 0,var(--bg) 70%)}
-.app{max-width:1120px;margin:0 auto;padding:88px clamp(14px,4vw,28px) 48px;display:grid;gap:18px}
+.app{max-width:none;width:100%;margin:0 auto;padding:88px clamp(14px,4vw,40px) 48px;display:grid;gap:18px}
 h1{margin:0;font-size:clamp(1.7rem,4.5vw,2.4rem);letter-spacing:-.03em;line-height:1.1}h2{margin:0;font-size:1.02rem;letter-spacing:-.01em}.sub{color:var(--mute);font-size:13px}
 .eyebrow{margin:0 0 6px;color:var(--acc);text-transform:uppercase;letter-spacing:.2em;font-size:.72rem;font-weight:700}
 header,.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -271,7 +271,7 @@ window.AUTH={
       <div class="tbl"><table><thead><tr><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th>Tanggal</th><th style="text-align:right">Jumlah</th><th></th></tr></thead><tbody id="rows"></tbody></table></div></section>
   </div>
 </div>
-<footer style="max-width:1120px;margin:0 auto;padding:0 20px calc(76px + env(safe-area-inset-bottom,0px))">Ardian · catatan keuangan pribadi</footer>
+<footer style="max-width:none;margin:0 auto;padding:0 clamp(14px,4vw,40px) calc(76px + env(safe-area-inset-bottom,0px))">Ardian · catatan keuangan pribadi</footer>
 <div id="toast" role="status"></div>
 <input type="file" id="file" accept="image/*,.heic,.heif" multiple style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 
@@ -291,9 +291,9 @@ window.AUTH={
 
 <dialog id="pdlg"><form id="pform" method="dialog">
   <h2 id="pt">Atur bulan</h2><div class="sub">Pengaturan ini hanya berlaku untuk bulan terpilih. Semua isian boleh dikosongkan.</div>
-  <div class="sub" style="margin-top:4px"><b>Uang awal per dompet</b> · terisi otomatis dari saldo, boleh diubah</div>
+  <div class="sub" style="margin-top:4px"><b>Uang bulan ini per dompet</b> · uang awal + pemasukan bulan ini, boleh diubah</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><label>Tunai<input name="w0" type="number" min="0" inputmode="numeric" data-money></label><label>Bank<input name="w1" type="number" min="0" inputmode="numeric" data-money></label><label>E-Wallet<input name="w2" type="number" min="0" inputmode="numeric" data-money></label></div>
-  <label>Total uang awal bulan ini (Rp)<input name="target" type="number" readonly style="opacity:.8" data-money></label>
+  <label>Total uang bulan ini (Rp)<input name="target" type="number" readonly style="opacity:.8" data-money></label>
   <div class="sub" style="margin-top:4px"><b>Pos pengeluaran</b> · hanya patokan, diisi nanti lewat transaksi</div><div id="pcats" style="display:grid;gap:8px"></div>
   <button class="btn" type="button" id="addPos" style="justify-self:start">+ Tambah pos</button>
   <div class="note" id="pwarn"></div>
@@ -485,6 +485,7 @@ function wbal(w,m){
   const ms=Object.keys(WO).filter(k=>k.endsWith('|'+w)).map(k=>k.split('|')[0]).filter(k=>k<=m).sort(),om=ms.length?ms[ms.length-1]:'',base=om?WO[om+'|'+w]:0;
   return base+tx.filter(x=>x.wallet===w&&x.date.slice(0,7)<=m&&(!om||x.date.slice(0,7)>=om)).reduce((a,x)=>a+(x.type==='in'?x.amount:-x.amount),0);}
 const wopen=(w,m)=>(m+'|'+w) in WO?WO[m+'|'+w]:wbal(w,shiftM(m,-1));
+const inW=(w,m)=>tx.filter(x=>x.wallet===w&&x.type==='in'&&x.date.slice(0,7)===m).reduce((a,x)=>a+x.amount,0);
 const wset=m=>WALLETS.reduce((a,w)=>a+((m+'|'+w) in WO?WO[m+'|'+w]:0),0);
 const limOf=m=>(PL[m]&&PL[m].lim)||limit;
 const shiftM=(m,n)=>{const d=new Date(m+'-01T00:00');d.setMonth(d.getMonth()+n);return ymd(d).slice(0,7)};
@@ -783,11 +784,11 @@ $('#wallets').addEventListener('keydown',e=>{if(e.target.id==='wedit'){if(e.key=
 const posRow=(n='',v='')=>`<div class="prow" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center"><input data-n placeholder="Untuk apa (cth: Makan)" maxlength="30" value="${esc(n)}" aria-label="Nama pos"><input data-v data-money type="number" min="0" inputmode="numeric" placeholder="Total Rp" value="${v}" aria-label="Total"><button type="button" class="btn" data-posdel aria-label="Hapus pos" style="padding:8px 12px">✕</button></div>`;
 function fillPlan(m,src){
   const f=$('#pform');$('#pt').textContent='Atur '+mLabel(M);
-  WALLETS.forEach((w,i)=>f['w'+i].value=Math.round(wopen(w,M)));
+  WALLETS.forEach((w,i)=>f['w'+i].value=Math.round(wopen(w,M)+inW(w,M)));
   const ps=posOf(src);$('#pcats').innerHTML=(ps.length?ps.map(c=>posRow(c,BG[src+'|'+c]||'')):[posRow()]).join('');chkPlan();}
 function chkPlan(){const f=$('#pform');let t=0;WALLETS.forEach((w,i)=>t+=Number(f['w'+i].value)||0);f.target.value=t;
   let c=0;document.querySelectorAll('#pcats .prow').forEach(r=>c+=Number(r.querySelector('[data-v]').value)||0);
-  const inM=sum(tx.filter(x=>x.date.slice(0,7)===M),'in'),av=t+inM;
+  const av=t;
   $('#pwarn').textContent=c?('Total patokan pos Rp'+Math.round(c).toLocaleString('id-ID')+(av-c<0?' · melebihi uang yang ada (Rp'+Math.round(av).toLocaleString('id-ID')+')':' · masih di bawah uang yang ada')):'';}
 $('#plan').onclick=()=>{if(!canWrite()){needTok();return;}fillPlan(M,M);$('#pdlg').showModal();};
 $('#copyPrev').onclick=()=>{fillPlan(M,shiftM(M,-1));toast('Disalin dari '+mLabel(shiftM(M,-1)));};
@@ -796,7 +797,7 @@ $('#addPos').onclick=()=>{$('#pcats').insertAdjacentHTML('beforeend',posRow());$
 $('#pcats').addEventListener('click',e=>{const d=e.target.closest("[data-posdel]");if(d)d.closest('.prow').remove();});
 $('#pform').addEventListener('submit',e=>{const f=e.target;
   change(()=>{db.run('INSERT OR REPLACE INTO plans(month,lim,target) VALUES(?,?,?)',[M,null,Number(f.target.value)||null]);
-    WALLETS.forEach((w,i)=>{const v=f['w'+i].value;if(v===''||Number(v)===Math.round(wbal(w,shiftM(M,-1))))db.run('DELETE FROM wopen WHERE month=? AND wallet=?',[M,w]);else db.run('INSERT OR REPLACE INTO wopen(month,wallet,amount) VALUES(?,?,?)',[M,w,Number(v)||0]);});db.run('DELETE FROM budgets WHERE month=?',[M]);
+    WALLETS.forEach((w,i)=>{const v=f['w'+i].value;const ov=(Number(v)||0)-inW(w,M);if(v===''||ov===Math.round(wbal(w,shiftM(M,-1))))db.run('DELETE FROM wopen WHERE month=? AND wallet=?',[M,w]);else db.run('INSERT OR REPLACE INTO wopen(month,wallet,amount) VALUES(?,?,?)',[M,w,ov]);});db.run('DELETE FROM budgets WHERE month=?',[M]);
     document.querySelectorAll('#pcats .prow').forEach(r=>{const n=r.querySelector('[data-n]').value.replace(/\|/g,' ').trim(),v=Number(r.querySelector('[data-v]').value);if(n&&v>0)db.run('INSERT OR REPLACE INTO budgets(month,cat,amount) VALUES(?,?,?)',[M,n,v]);});});});
 // notif
 $('#nbtn').onclick=()=>{const s=$('#status'),n=$('#nstat');n.textContent=s.textContent;n.className='status '+s.className.replace('status','').trim();$('#nmsg').textContent=NOTIF||'Tidak ada notifikasi.';$('#ndlg').showModal();};
