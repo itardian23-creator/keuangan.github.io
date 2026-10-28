@@ -220,6 +220,7 @@ window.AUTH={
     <span class="status" id="status" hidden>Memuat…</span>
     <div class="dtools">
       <button class="ib" id="nbtn" data-notif type="button">Notif</button>
+      <button class="ib" id="xls" type="button" title="Download semua riwayat ke Excel">Excel</button>
       <button class="ib" id="reload" type="button">Muat ulang</button>
       <button class="ib" id="up" type="button" title="Upload struk / bukti TF">Upload struk</button>
       <button class="ib" id="cfg" type="button">Keluar</button>
@@ -236,6 +237,7 @@ window.AUTH={
         <button type="button" data-go="nbtn" data-notif>Notif</button>
         <button type="button" data-go="plan">Atur bulan ini</button>
         <button type="button" data-go="up">Upload struk / bukti TF</button>
+        <button type="button" data-go="xls">Download Excel (semua riwayat)</button>
         <button type="button" data-go="reload">Muat ulang</button>
         <button type="button" data-go="cfg">Keluar</button>
       </nav>
@@ -321,6 +323,8 @@ window.AUTH={
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 // <dialog> untuk Safari/Android lama
@@ -770,6 +774,113 @@ $('#rlist').addEventListener('change',e=>{const k=e.target.dataset.ik,r=e.target
 $('#rlist').addEventListener('click',e=>{const b=e.target.closest('[data-ir]');if(!b)return;const x=Q[+b.closest('.rv').dataset.i];x.items.splice(+b.closest('[data-j]').dataset.j,1);fin(x);drawQ();});
 $('#rsave').onclick=async()=>{const ok=Q.filter(x=>x.amount>0);if(!ok.length){toast('Isi nominal dulu.');return;}$('#rsave').disabled=true;await saveItems(ok);Q=[];$('#rdlg').close();toast(ok.length+' transaksi tersimpan');};
 $('#reload').onclick=loadDb;
+// ---------- download Excel: semua riwayat ----------
+async function exportExcel(){
+  const HJ=typeof ExcelJS!=='undefined',HS=typeof XLSX!=='undefined';
+  if(!HJ&&!HS){toast('Library Excel belum termuat. Cek koneksi internet lalu coba lagi.');return;}
+  if(!tx.length){toast('Belum ada transaksi untuk diunduh.');return;}
+  const P=s=>s.split('-').map(Number);
+  const serial=s=>{const [y,m,d]=P(s);return Math.round((Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/864e5);};
+  const dObj=s=>{const [y,m,d]=P(s);return new Date(Date.UTC(y,m-1,d));};
+  const dTxt=s=>{const [y,m,d]=P(s);return String(d).padStart(2,'0')+'/'+String(m).padStart(2,'0')+'/'+y;};
+  const all=[...tx].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.id-b.id);
+  const MONEY='#,##0',DATE='dd/mm/yyyy',NCOL=9;
+  const ms=[...new Set([...all.map(x=>x.date.slice(0,7)),...Object.keys(WO).map(k=>k.split('|')[0])])].sort();
+  const msTx=[...new Set(all.map(x=>x.date.slice(0,7)))].sort();
+
+  // ---- sheet datar (filterable) ----
+  const flat={name:'Semua Transaksi',filter:1,dates:[1],fmt:{1:DATE,7:MONEY},w:[6,12,34,13,16,16,12,15,30,10,10],
+    head:['No','Tanggal','Keterangan','Jenis','Kategori','Sub-jenis','Dompet','Jumlah (Rp)','Catatan','Sumber','Bukti foto'],
+    body:all.map((x,i)=>[i+1,serial(x.date),x.title,x.type==='in'?'Pemasukan':'Pengeluaran',x.cat||'',x.jenis||'',x.wallet||'',x.amount,x.note||'',x.source||'',x.proof?'Ada':''])};
+  // ---- ringkasan bulanan ----
+  let tIn=0,tOut=0,tN=0;
+  const mrows=ms.map(m=>{const a=all.filter(x=>x.date.slice(0,7)===m),i=sum(a,'in'),o=sum(a,'out'),aw=wset(m);tIn+=i;tOut+=o;tN+=a.length;
+    return [m,mLabel(m),aw,i,aw+i,o,aw+i-o,a.length];});
+  mrows.push(['','TOTAL','',tIn,'',tOut,tIn-tOut,tN]);
+  const ring={name:'Ringkasan Bulanan',total:1,dates:[],fmt:{2:MONEY,3:MONEY,4:MONEY,5:MONEY,6:MONEY},w:[10,18,16,22,20,18,16,14],
+    head:['Bulan','Nama bulan','Uang awal (Rp)','Pemasukan transaksi (Rp)','Total pemasukan (Rp)','Pengeluaran (Rp)','Sisa (Rp)','Jml transaksi'],body:mrows};
+  // ---- per kategori ----
+  const crow=[];
+  ms.forEach(m=>{const out=all.filter(x=>x.type==='out'&&x.date.slice(0,7)===m);
+    const names=[...new Set([...posOf(m),...out.map(x=>x.cat||'(tanpa kategori)')])];
+    names.forEach(c=>{const used=out.filter(x=>(x.cat||'(tanpa kategori)')===c).reduce((a,x)=>a+x.amount,0),b=BG[m+'|'+c]||0;
+      if(used||b)crow.push([m,c,b||'',used,b?b-used:'']);});});
+  const kat={name:'Per Kategori',dates:[],fmt:{2:MONEY,3:MONEY,4:MONEY},w:[10,22,16,16,16],head:['Bulan','Pos / Kategori','Anggaran (Rp)','Terpakai (Rp)','Sisa (Rp)'],body:crow};
+  // ---- saldo awal dompet ----
+  const wrow=Object.entries(WO).map(([k,v])=>{const [m,w]=k.split('|');return [m,w,v];}).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:a[1]<b[1]?-1:1);
+  const dom={name:'Saldo Awal Dompet',dates:[],fmt:{2:MONEY},w:[10,14,16],head:['Bulan','Dompet','Uang awal (Rp)'],body:wrow};
+  // ---- blok per bulan ----
+  const MH=['No','Tanggal','Keterangan','Jenis','Kategori','Sub-jenis','Dompet','Jumlah (Rp)','Catatan'];
+  const MW=[6,12,34,13,16,16,12,16,30];
+  const blk=msTx.map(m=>{const a=all.filter(x=>x.date.slice(0,7)===m);
+    return {m,label:mLabel(m).toUpperCase()+'   ·   '+a.length+' transaksi',a,i:sum(a,'in'),o:sum(a,'out'),sal:WALLETS.reduce((s,w)=>s+wbal(w,m),0)};});
+  const trow=(x,i,dt)=>[i+1,dt(x.date),x.title,x.type==='in'?'Pemasukan':'Pengeluaran',x.cat||'',x.jenis||'',x.wallet||'',x.amount,x.note||''];
+  const sums=b=>[['Total pemasukan',b.i,'in'],['Total pengeluaran',b.o,'out'],['Selisih (masuk − keluar)',b.i-b.o,''],['Saldo akhir bulan (semua dompet)',b.sal,'']];
+  const fname='Ardian-Riwayat-Keuangan-'+today()+'.xlsx';
+
+  if(HJ){
+    const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}});
+    const wb=new ExcelJS.Workbook();wb.creator='Ardian';
+    // sheet 1: riwayat per bulan
+    const ws=wb.addWorksheet('Riwayat per Bulan',{views:[{showGridLines:false}]});
+    ws.columns=MW.map(w=>({width:w}));
+    const thin={style:'thin',color:{argb:'FFD1D5DB'}};
+    blk.forEach((b,bi)=>{
+      const r=ws.addRow([b.label]);ws.mergeCells(r.number,1,r.number,NCOL);r.height=28;
+      const c=r.getCell(1);c.font={bold:true,size:13,color:{argb:'FFFFFFFF'}};c.fill=fill('FF1E3A8A');c.alignment={vertical:'middle',indent:1};
+      const h=ws.addRow(MH);
+      h.eachCell({includeEmpty:true},c=>{c.font={bold:true};c.fill=fill('FFE5E7EB');c.border={bottom:{style:'medium',color:{argb:'FF6B7280'}}};});
+      h.getCell(8).alignment={horizontal:'right'};
+      b.a.forEach((x,i)=>{
+        const row=ws.addRow(trow(x,i,dObj));
+        row.getCell(2).numFmt=DATE;row.getCell(8).numFmt=MONEY;
+        row.getCell(8).font={color:{argb:x.type==='in'?'FF059669':'FFE11D48'}};
+        row.eachCell({includeEmpty:true},c=>{c.border={bottom:thin};});});
+      sums(b).forEach(([lab,val,k],si)=>{
+        const row=ws.addRow(['','',lab,'','','','',val]);
+        row.getCell(8).numFmt=MONEY;
+        row.eachCell({includeEmpty:true},c=>{c.fill=fill('FFF3F4F6');c.font={bold:true,color:{argb:k==='in'?'FF059669':k==='out'?'FFE11D48':'FF111827'}};if(si===0)c.border={top:{style:'medium',color:{argb:'FF6B7280'}}};});});
+      if(bi<blk.length-1){ws.addRow([]);ws.addRow([]);}
+    });
+    // sheet lain
+    [flat,ring,kat,dom].forEach(s=>{
+      if(s===dom&&!s.body.length)return;
+      const w2=wb.addWorksheet(s.name,{views:[{state:'frozen',ySplit:1}]});
+      w2.columns=s.w.map(w=>({width:w}));
+      const h=w2.addRow(s.head);h.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill=fill('FF1E3A8A');c.alignment={vertical:'middle',wrapText:true};});
+      s.body.forEach(r=>{
+        const row=w2.addRow(r.map((v,i)=>s.dates.includes(i)&&typeof v==='number'?new Date(Math.round((v-25569)*864e5)):v));
+        row.eachCell({includeEmpty:true},(c,i)=>{const f=s.fmt[i-1];if(f)c.numFmt=f;});});
+      if(s.total&&s.body.length)w2.getRow(s.body.length+1).eachCell({includeEmpty:true},c=>{c.font={bold:true};c.fill=fill('FFF3F4F6');});
+      if(s.filter&&s.body.length)w2.autoFilter={from:{row:1,column:1},to:{row:s.body.length+1,column:s.head.length}};
+    });
+    const buf=await wb.xlsx.writeBuffer();
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  }else{
+    // cadangan tanpa warna (SheetJS): tetap ada pemisah per bulan
+    const aoa=[],merges=[];
+    blk.forEach((b,bi)=>{
+      merges.push({s:{r:aoa.length,c:0},e:{r:aoa.length,c:NCOL-1}});
+      aoa.push(['=== '+b.label+' ===']);aoa.push(MH);
+      b.a.forEach((x,i)=>aoa.push(trow(x,i,dTxt)));
+      sums(b).forEach(([lab,val])=>aoa.push(['','',lab,'','','','',val]));
+      if(bi<blk.length-1){aoa.push([]);aoa.push([]);}});
+    const w1=XLSX.utils.aoa_to_sheet(aoa);w1['!cols']=MW.map(w=>({wch:w}));w1['!merges']=merges;
+    Object.keys(w1).forEach(k=>{if(k[0]!=='!'&&/^H\d+$/.test(k)&&typeof w1[k].v==='number')w1[k].z=MONEY;});
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,w1,'Riwayat per Bulan');
+    [flat,ring,kat,dom].forEach(s=>{
+      if(s===dom&&!s.body.length)return;
+      const ws2=XLSX.utils.aoa_to_sheet([s.head,...s.body]);ws2['!cols']=s.w.map(w=>({wch:w}));
+      if(s.filter&&s.body.length)ws2['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:s.body.length,c:s.head.length-1}})};
+      for(const [col,z] of Object.entries(s.fmt))for(let r=1;r<=s.body.length;r++){const ad=XLSX.utils.encode_cell({r,c:+col});if(ws2[ad])ws2[ad].z=z;}
+      if(s.dates.length)for(let r=1;r<=s.body.length;r++)for(const c of s.dates){const ad=XLSX.utils.encode_cell({r,c});if(ws2[ad])ws2[ad].z=DATE;}
+      XLSX.utils.book_append_sheet(wb,ws2,s.name);});
+    XLSX.writeFile(wb,fname);
+  }
+  toast('Excel diunduh: '+all.length+' transaksi dari '+msTx.length+' bulan.');
+}
+$('#xls').onclick=()=>exportExcel().catch(e=>toast('Gagal membuat Excel: '+e.message));
 // ubah saldo dompet langsung di tampilan
 $('#wallets').addEventListener('click',e=>{const w=e.target.closest('[data-w]');if(!w)return;if(!canWrite()){needTok();return;}EW=w.dataset.w;render();});
 $('#wallets').addEventListener('keydown',e=>{const w=e.target.closest('[data-w]');if(w&&(e.key==='Enter'||e.key===' ')){e.preventDefault();w.click();}});
